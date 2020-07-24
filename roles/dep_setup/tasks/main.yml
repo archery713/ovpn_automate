@@ -1,0 +1,16 @@
+---
+#Install main playbook dependencies
+  - name: Install apt dependencies
+    apt:
+      name: ['openvpn','easy-rsa','python3-pip','iptables-persistent']
+      state: latest
+    become: true
+
+  - name: Install pip dependencies
+    pip:
+      name: pexpect
+      state: latest
+    become: true
+    environment:
+      - https_proxy: "http://{{ proxy_server }}"
+      - http_proxy: "http://{{ proxy_server }}"

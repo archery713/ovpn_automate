@@ -1,0 +1,17 @@
+---
+#Directories for various sub_directories and files
+  - name: Create Config dir
+    file:
+      path: "{{ config_path }}"
+      state: directory
+
+#Directory for finish configs
+  - name: Create ~/vpn_configs/* folders
+    file:
+      path: "{{ config_path }}/{{ item }}"
+      state: directory
+    with_items:
+      - client_config_path
+      - server_config_path
+
+#For the CSV folder setup and import see csv_setup/tasks/main.yml

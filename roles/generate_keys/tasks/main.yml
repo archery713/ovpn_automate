@@ -1,0 +1,57 @@
+---
+  - name: OpenVPN | Build client keys & cert
+    expect:
+      command: ./easyrsa build-client-full "{{ (item | splitext)[0] }}" --req-cn "{{ (item | splitext)[0] }}"
+      responses:
+#        'Enter PEM pass phrase:': "{{ (item | splitext)[0] }}"
+#        'Verifying - Enter PEM pass phrase:': "{{ (item | splitext)[0] }}"
+        'Enter PEM pass phrase:': ""
+        'Verifying - Enter PEM pass phrase:': ""
+        'Enter pass phrase for .*?:': "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+    no_log: true
+    with_items:
+      - "{{ new_names }}"
+
+  - name: OpenVPN | Register cert contents
+    command: cat {{ ca_path }}
+    register: ca_output
+    no_log: true
+    changed_when: false
+
+  - name: OpenVPN | Register HMAC contents
+    command: cat "{{ hmac_key_path }}/ta.key"
+    register: hmac_output
+    no_log: true
+    changed_when: false
+
+  - name: OpenVPN | Register client key contents
+    command: cat "{{ key_path }}/{{ (item | splitext)[0] }}.key"
+    register: key_output
+    with_items: "{{ new_names }}"
+    no_log: true
+    changed_when: false
+
+  - name: OpenVPN | Register client certificate contents
+    command: cat "{{ cert_path }}/{{ (item | splitext)[0] }}.crt"
+    register: cert_output
+    with_items: "{{ new_names }}"
+    no_log: true
+    changed_when: false
+
+  - set_fact:
+      key_contents: "{{ key_output.results | map(attribute='stdout') | list }}"
+      cert_contents: "{{ cert_output.results | map(attribute='stdout') | list }}"
+      ca_contents: "{{ ca_output.stdout }}"
+      hmac_contents: "{{ hmac_output.stdout }}"
+
+  - name: OpenVPN | Build client configs (.ovpn files; pki embedded)
+    template:
+      src: ~/ovpn_ansible/roles/generate_keys/templates/client.ovpn.j2
+      dest: "{{ client_config_path }}/{{ (item[0] | splitext)[0] }}.ovpn"
+      mode: 0400
+    no_log: true
+    with_together:
+      - "{{ new_names }}"
+      - "{{ cert_contents }}"
+      - "{{ key_contents }}"

@@ -1,0 +1,15 @@
+---
+  - name: Create CSV folder
+    file:
+      path: {{ csv_path }}
+      state: directory
+
+#  - name: Import current.csv from SQL
+    #Import CSV report from SQL Server here
+    #CSV should be named sql_import.csv
+
+# Temporary sql_import from dev server *** REMOVE BEFORE RELEASE
+  - name: Import CSV file
+    copy:
+      src: ~/ovpn_ansible/sql_import.csv
+      dest: "{{ csv_path }}/sql_import.csv"

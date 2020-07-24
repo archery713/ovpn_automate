@@ -1,0 +1,7 @@
+all:
+  children:
+    vm:
+      hosts:
+        vsphere_box:
+          #Ubuntu Server LTS 20.04 VM
+          ansible_host: 10.220.16.251 #Subject to Change

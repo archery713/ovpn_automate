@@ -1,0 +1,27 @@
+---
+  - name: OpenVPN | Enable IPv4 traffic forwarding
+    sysctl:
+      name: net.ipv4.ip_forward
+      value: '1'
+    become: true
+
+#  - name: OpenVPN | Create client configuration directory
+#    file:
+#      path: "{{ openvpn_path_ccd }}"
+#      state: directory
+#      mode: 0755
+
+  - name: OpenVPN | Enable services
+    command: "systemctl enable openvpn@{{ item.proto }}-{{ item.port }}"
+    with_items: "{{ openvpn_instances }}"
+    become: true
+
+  - name: OpenVPN | Reload daemon
+    command: systemctl daemon-reload
+    become: true
+
+  - name: OpenVPN | Start services
+    service:
+      name: openvpn
+      state: started
+    become: true

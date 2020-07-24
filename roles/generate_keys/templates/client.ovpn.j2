@@ -1,0 +1,44 @@
+client
+
+dev tun
+proto udp
+
+remote {{ server_name }} 1194
+resolv-retry infinite
+nobind
+
+user nobody
+group nogroup
+persist-key
+persist-tun
+
+ca ca.crt
+cert {{ (item[0] | splitext)[0] }}.crt
+key {{ (item[0] | splitext)[0] }}.key
+
+remote-cert-tls server
+#verify-x509-name "{{ server_name }}"
+tls-version-min 1.2
+cipher AES-256-CBC
+auth SHA256
+key-direction 1
+
+#comp-lzo
+verb 3
+;mute 20
+
+<tls-auth>
+{{ hmac_contents }}
+</tls-auth>
+
+<ca>
+{{ ca_contents }}
+</ca>
+
+<cert>
+{{ item[1] }}
+</cert>
+
+<key>
+{{ item[2] }}
+</key>

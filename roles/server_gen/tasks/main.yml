@@ -1,0 +1,14 @@
+---
+  - name: OpenVPN | Build Server key / cert
+    expect:
+      command: ./easyrsa build-server-full "{{ server_name }}" nopass --req-cn "{{ server_name }}"
+      responses:
+        'Enter pass phrase for .*?:$': "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+
+  - name: OpenVPN | Configuration
+    template:
+      src: server.conf.j2
+      dest: "/etc/openvpn/{{ item.mask }}-{{ item.port }}.conf"
+    with_items: "{{ openvpn_instances }}"
+    become: true

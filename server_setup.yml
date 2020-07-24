@@ -1,0 +1,15 @@
+---
+  - hosts: all
+
+    roles:
+    #-- Setup directories
+      - dir_setup
+
+    #--- Install dependencies
+      - dep_setup
+
+    #-- Import CSV files
+      - csv_setup
+
+    #-- Setup easy-rsa
+      - rsa_setup

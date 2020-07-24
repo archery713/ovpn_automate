@@ -1,0 +1,43 @@
+---
+  - name: List Client Names
+    read_csv:
+        path: "{{ csv_path }}/sql_import.csv"
+    register: check_names
+
+  - name: Find exisiting configs
+    find:
+      paths: "{{ client_config_path }}"
+      file_type: "file"
+    register: current_files
+
+  - set_fact:
+        revoked_names: []
+        exist_names: []
+        valid_names: []
+        new_names: []
+
+  - name: List exisiting configs
+    set_fact: exist_names="{{ exist_names }} + [ '{{ item.path | basename }}' ]"
+    no_log: true
+    with_items:
+        - "{{ current_files.files }}"
+
+  - name: List all non-revoked configs
+    set_fact: valid_names="{{ valid_names }} + [ '{{ item.key_name }}.ovpn' ]"
+    when: item.revoke == "FALSE"
+    no_log: true
+    with_items:
+        - "{{ check_names.list }}"
+
+  - name: List all revoked configs
+    set_fact: revoked_names="{{ revoked_names }} + [ '{{ item.key_name }}.ovpn' ]"
+    when: item.revoke == "TRUE"
+    no_log: true
+    with_items:
+        - "{{ check_names.list }}"
+
+  - name: Compare lists | Find Difference
+    set_fact: new_names="{{ valid_names | difference(exist_names) }}"
+
+  - name: Compare lists | Register configs to remove [No SQL entry]
+    set_fact: remove_list="{{ exist_names | difference(valid_names) }}"

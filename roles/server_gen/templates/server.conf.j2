@@ -1,0 +1,37 @@
+dev tun
+proto udp
+
+server {{ item.mask }} port {{ item.port }}
+
+ca ca.crt
+cert {{ server_name }}.crt
+key {{ server_name }}.key
+
+{% for item in item.server_extra_options %}
+{{ item }}
+{% endfor %}
+
+# Fix for the Windows 10 DNS leak described here:
+# https://community.openvpn.net/openvpn/ticket/605
+#push block-outside-dns
+
+remote-cert-tls client
+keepalive 10 120
+tls-auth "{{ hmac_key_path }}/ta.key" 0
+cipher {{ ovpn_cipher }}
+tls-cipher {{ ovpn_tls_cipher }}
+auth {{ ovpn_auth_digest }}
+tls-version-min 1.2
+#comp-lzo
+persist-key
+persist-tun
+
+client-to-client
+keepalive 10 120
+tun-mtu 1500
+mssfix 1450
+status /var/log/openvpn-udp-1194-status.log
+log  /var/log/openvpn-udp-1194.log
+verb 3
+mute 10
+#client-config-dir {{ ovpn_path_ccd }}

@@ -1,0 +1,143 @@
+#Archer Christman - June 2020
+#WCASD Networking Internship
+#OpenVPN Ansible automation README
+
+*** I ask that you read any and all steps you may encounter issues with - your problem may not be
+*** what you expected and the solution may be in an unlikely place. Thank you!
+
+The purpose of this project is to automate the process of creating .ovpn configs for the WCASD
+employees working from home. Included in this readme are instructions on the various playbooks about
+when to or NOT to run them depending on your use case.
+
+The following section will explain each of the playbooks in the SPECIFIC order they should be played
+unless they have been modified to do otherwise.
+
+The inventory this project uses by default is host_nodes.yml. Changing the inventory is up to the
+user running the following playbooks.
+
+Playbook Order & Explanation
+------------------------------------------------------------
+Step 1: server_setup.yml
+    - dir_setup:
+        This role only needs to be run when starting with a blank Ubuntu 20.04 Server LTS box.
+        This can obviously work with many other Linux distros however this was tested and designed
+        to work with Ubuntu Server 20.04 LTS. Check compatibility before using these playbooks.
+
+    - dep_setup:
+        For the entire project, the following dependencies are REQUIRED for proper operation without
+        modification of the playbooks. [openvpn, easy-rsa, python3-pip, pexpect*] Without these
+        installed, the project will NOT run to completion. This playbook will NOT run without
+        python3-pip & easy-rsa installed at all.
+
+        * pexpect is a pip3 install, thus the python3-pip must be installed first via apt, do not
+        * change the install order or this error may fail the playbook
+
+        ** when running this playbook, to use pip you must bypass the proxy server, you can change
+        ** the proxy server IP in group_vars/all.yml line 33
+
+    - csv_setup:
+      The CSV setup is designed to import the sql_import.csv from a Microsoft SQL server with
+      AT LEAST the follow fields: [key_name, revoke]. If you do not have these fields in your
+      CSV please modify according to your needs.
+
+    - rsa_setup:
+      Only run this playbook ONCE as it will build file structures and setup EasyRSA, if it is
+      run multiple times, EasyRSA will cause the playbook to fail as you cannot setup into the
+      same directory multiple times.
+
+------------------------------------------------------------
+Step 2: gen_key.yml
+    - csv_check:
+        This is probably the most important part of this project other than the actual key and client
+        generation. This role will automatically complete the following and pass it to the rest of the
+        play. This role probably took me the longest to ensure it was the most optimized.
+            - Take the imported SQL CSV and extract all key_name values
+            - Next it will find the directory with already generated configs
+            - It creates empty lists that are INSTRUMENTAL in figuring out the rest of the role
+            - It will then fill one of the lists with the names of the already generated configs
+            - It then fills another list with the NON revoked keys from the imported SQL CSV
+            - * As part of the key_revoke playbook, it also pulls the revoked configs into a list
+            - It will compare the imported list to the already generated list and fill a third list
+              with all the configs that need to be made but do not exist and are NOT revoked
+            - * The final compare will see if there are any configs in the file that exist but are
+              not registered in the SQL CSV. This is a security counter measure if someone attempts
+              to jack a key into the system or generate keys for access then remove that entry from
+              the SQL CSV expecting it to go unnoticed and have unregistered access. These keys are
+              then revoked and the configs are deleted to prevent unregistered access. The rationale
+              is that we would rather re-generate improperly revoked keys than risk allowing bad
+              actors to operate freely.
+
+              * These two tasks are designed to be used by the key_revoke.yml playbook but require
+              * many previous steps in the same csv_check main.yml that I call it in both playbooks
+              * but different lists are used in the following steps.
+
+    - generate_keys:
+        Taking the list generate by the previous role, it automatically creates client keys, client
+        certs, and client configs. The template it uses requires an HMAC key which is automatically
+        generated. If you wish not to use HMAC then please comment out tasks in the following places:
+            - roles/generate_keys/tasks/main.yml | line: 20 - 24 | OpenVPN | Register HMAC contents
+            - roles/generate_keys/templates/client.ovpn.j2 | line: 30 - 34 | tls-auth
+            - group_vars/all.yml | line: 28 | hmac_key_path
+            - roles/server_gen/templates/server.conf.j2 | line: 20 | tls-auth {{ hmac_key_path }} 0
+        When the keys are generated, they are placed in a folder defined in all.yml. From there you
+        can fetch them manually or run the file_sync playbook to deposit them somewhere pre-defined
+
+------------------------------------------------------------
+Step 3: ovpn_server.yml
+
+    - server_gen:
+        A simple role that builds the cert and key for the OpenVPN server. Be sure to have a set
+        common name for your server in group_vars/all.yml or this step will fail. The next step
+        builds a config based on the template held in the same role. As mentioned in generate_keys
+        on line 76, this template uses an HMAC key for hardening. Please refer to this section if you
+        wish to disable this hardening.
+
+    - server_firewall:
+        Ansible will read the default ipv4 table that is expects to use as reference. It will then
+        flush the existing firewall so you don't duplicate or conflict rules. Next, using a template
+        it will create the rules necessary for the OpenVPN server. Finally it loads the new iptable
+        rules file into the recently flushed firewall.
+
+        * If the playbook hangs on "Load iptables rules" the issue is most likely the wrong settings in
+        * openvpn_instances, located in group_vars/all.yml line 54 and 55. You need to set these IPs to
+        * the server you are running the playbook against.
+
+    - server_launch:
+        This role handles two parts of the server launching process. The first step is to properly
+        configure the current remote servers iptables to allow the OpenVPN server to operate
+        properly. This uses a template iptable_rules.v4.j2 to do this and is fairly simple. If you
+        prefer to configure the firewall by hand, please comment this role out. IP tables will be
+        saved to a predefined path in groups_vars/all.yml, if you need to change them.
+
+------------------------------------------------------------
+Step 4: key_revoke.yml
+    - csv_check:
+        For more detailed reference for on what this role does please refer to Step 2: gen_key.yml
+        on line 51. This will only detail the use case for revoking keys. This role is used to find
+        two kinds of keys, those who are defined as revoked (revoke == "TRUE") or as existing in
+        the vpn_keys/client_keys but not registered in the SQL CSV imported from HR. For a more
+        detailed reason for this second key type please refer to Step 2: gen_key.yml line 64.
+
+    - key_revoke:
+        This role begins by checking if all keys marked as revoked are properly revoked and the
+        crl is updated with that information. It is followed by revoking unregistered keys, both
+        of these revoking tasks allow for errors in case these keys have already been revoked and
+        there was just a mistake in the automated previously, or human intervention occurred and
+        the system was not made aware of it. After that, it simply checks and deletes the marked
+        .ovpn config files in the proper directory.
+
+------------------------------------------------------------
+Step 5: file_sync.yml (optional)
+
+
+------------------------------------------------------------
+Afterword:
+If this is being many years down the line and this playbook is still in production and you read
+this hoping to follow my awful train of thought and don't understand it at all, I hope on the
+following forms of contact will remain active. Try all emails before calling me please.
+
+Emergency Contact
+------------------------------------------------------------
+Email: archer@psu.edu | axc5975@psu.edu | axc2015@gmail.com
+Phone: 484-886-4113
+------------------------------------------------------------

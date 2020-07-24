@@ -1,0 +1,34 @@
+---
+  - name: Make easy-rsa Directory
+    command: make-cadir "{{ easyrsa_path }}"
+
+  - name: Init PKI
+    command: ./easyrsa init-pki
+    args:
+      chdir: "{{ easyrsa_path }}"
+
+  - name: Central Cert | Build CA (.crt)
+    expect:
+      command: ./easyrsa build-ca
+      responses:
+        'Enter New CA Key Passphrase: ': "{{ ca_password }}"
+        'Re-Enter New CA Key Passphrase: ': "{{ ca_password }}"
+        (?i)Common: "{{ ca_common_name }}"
+      chdir: "{{ easyrsa_path }}"
+    no_log: true
+
+  - name: Create HMAC dir
+    file:
+      path: "{{ easyrsa_path }}/hmac_key"
+      state: directory
+
+  - name: HMAC | Build ta.key
+    command: openvpn --genkey --secret "{{ hmac_key_path }}/ta.key"
+
+  - name: Revocation | Build crl (first time)
+    expect:
+      command: ./easyrsa gen-crl
+      responses:
+        (?i)Enter: "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+    no_log: true

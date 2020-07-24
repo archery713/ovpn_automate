@@ -1,0 +1,68 @@
+---
+  #Server Account Details
+  ansible_user: intern #Subject to Change
+  ansible_password: lamEpassworD #Subject to Change
+  ansible_become_pass: lamEpassworD #Subject to Change
+
+  #EasyRSA Setup Details
+  ca_common_name: ca
+  ca_password: intern #Subject to Change
+  easyrsa_path: ~/intern_ca #Subject to Change
+  revoke_confirm: yes
+
+#  #EasyRSA Config Details
+#  openvpn_key_country: "US"
+#  openvpn_key_province: "Pennsylvania"
+#  openvpn_key_city: "West Chester"
+#  openvpn_key_org: "West Chester Area School District"
+#  openvpn_key_ou: "Networking Team"
+#  openvpn_key_email: "cross@wcasd.net"
+
+  #Default EasyRSA file paths
+  ca_path: {{ easyrsa_path }}/pki/ca.crt
+  key_path: {{ easyrsa_path }}/pki/private
+  cert_path: {{ easyrsa_path }}/pki/issued
+
+  #Custom OpenVPN file paths
+  csv_path: ~/vpn_csv #Subject to Change
+  hmac_key_path: {{ easyrsa_path }}/hmac_key
+  config_path: ~/vpn_configs
+  client_config_path: {{ config_path }}/client_config
+  server_config_path: {{ config_pat }}/server_config
+
+  #Proxy export IP
+  proxy_server: 10.1.30.6:3128 #Subject to Change
+
+  #OpenVPN Server Setup Details
+  server_name: intern_server #Subject to Change
+  ovpn_path: /etc/openvpn
+  openvpn_path: /etc/openvpn
+  ovpn_tls_cipher: "TLS-DHE-DSS-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-GCM-SHA384:TLS-DHE-RSA-WITH-AES-256-CBC-SHA256:TLS-DHE-DSS-WITH-AES-256-CBC-SHA256"
+  ovpn_cipher: "AES-128-CBC"
+  ovpn_auth_digest: "SHA1"
+  ovpn_path_ccd: "modify groups_vars/all.yml to use ccd"
+
+  #IPTables Details
+  load_iptables_rules: true
+  iptables_path: "/sbin/iptables"
+  openvpn_iptables: "openvpn_iptables_rules.sh"
+
+  #Uncomment TCP and configure variables if UDP causes issues
+  openvpn_instances:
+    - {
+      proto: udp,
+      port: 1194,
+      mask: "{{ ansible_host }} 255.255.0.0",
+      cidr: "{{ ansible_host }}/16",
+      server_extra_options: ['push "route 10.8.129.6 255.255.255.0"'],
+      client_extra_options: [],
+    }
+#    - {
+#      proto: tcp,
+#      port: 443,
+#      mask: "192.168.70.0 255.255.255.0",
+#      cidr: "192.168.70.0/24",
+#      server_extra_options: ['route 172.16.0.0 255.240.0.0', 'push "route 172.16.0.0 255.240.0.0"'],
+#      client_extra_options: [],
+#    }
+

@@ -1,0 +1,9 @@
+---
+  - hosts: all
+
+    roles:
+    #---CSV file check
+      - csv_check
+
+    #---Key generation
+      - generate_keys

@@ -1,0 +1,12 @@
+---
+  - hosts: all
+
+    roles:
+      # Create server configs
+      - server_gen
+
+      # Setup firewall config
+      - server_firewall
+
+      # Launch VPN server
+      - server_launch

@@ -1,0 +1,9 @@
+---
+  - hosts: all
+
+    roles:
+    # --- Double check CSV check has been performed
+        - csv_check
+
+    # --- Revoke keys marked as revoked
+        - key_revoke

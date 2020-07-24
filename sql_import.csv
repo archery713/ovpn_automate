@@ -1,0 +1,6 @@
+employee_id,name_last,name_first,key_name,revoke
+1,geiger,taryn,tgeiger,FALSE
+2,farrell,dan,dfarrell,FALSE
+3,fleck,margaret,mfleck,FALSE
+4,schuster,gehrig,gschuster,FALSE
+2,farrell,dan,Dfarrell-ipad,TRUE

@@ -1,0 +1,51 @@
+---
+  - name: Revoke keys | Skips fails if keys do not exist
+    expect:
+      command: ./easyrsa revoke {{ (item | splitext)[0] }}
+      responses:
+        (?.)Type: "{{ revoke_confirm }}"
+        (?.)Enter: "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+    no_log: true
+    ignore_errors: yes
+    with_items:
+      - "{{ revoked_names }}"
+
+  - name: Revoke unregistered keys | Skips fails if keys do not exist
+    expect:
+      command: ./easyrsa revoke {{ (item | splitext)[0] }}
+      responses:
+        (?.)Type: "{{ revoke_confirm }}"
+        (?.)Enter: "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+    no_log: true
+    ignore_errors: yes
+    with_items:
+      - "{{ remove_list }}"
+
+  - name: Update crl (post revoke)
+    expect:
+      command: ./easyrsa gen-crl
+      responses:
+        (?i)Enter: "{{ ca_password }}"
+      chdir: "{{ easyrsa_path }}"
+    #no_log: true
+
+  - name: Remove revoked configs
+    file:
+      path: "{{ client_config_path }}/{{ item }}"
+      state: absent
+    with_items:
+      - "{{ revoked_names }}"
+
+  - name: Remove unregistered configs
+    file:
+      path: "{{ client_config_path }}/{{ item }}"
+      state: absent
+    no_log: true
+    with_items:
+      - "{{ remove_list }}"
+
+  - name: Reload daemon crl update
+      command: systemctl daemon-reload
+      become: true

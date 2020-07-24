@@ -1,0 +1,27 @@
+---
+  - name: OpenVPN | Reread ansible_default_ipv4
+    setup:
+      filter: ansible_default_ipv4*
+
+  - name: OpenVPN | Flush existing firewall rules
+    iptables:
+      table: nat
+      flush: true
+    when: load_iptables_rules
+    changed_when: false
+    become: true
+
+  - name: OpenVPN | Write iptables rules file
+    template:
+      src: iptables_rules.v4.j2
+      dest: "{{ openvpn_path }}/{{ openvpn_iptables }}"
+      owner: root
+      group: root
+      mode: 0744
+    become: true
+
+  - name: OpenVPN | Load iptables rules
+    command: "{{ openvpn_path }}/{{ openvpn_iptables }}"
+    when: load_iptables_rules
+    changed_when: false
+    become: true
